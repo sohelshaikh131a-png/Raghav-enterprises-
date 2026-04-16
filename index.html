@@ -1,0 +1,212 @@
+<!DOCTYPE html><html>
+<head>
+<title>Raghav Enterprises</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body{margin:0;font-family:Arial;background:#f5f5f5}
+header{background:#e60000;color:#fff;padding:15px;text-align:center}
+.section{display:none;padding:30px;text-align:center}
+.active{display:block}
+input,button{padding:10px;margin:10px;border-radius:5px;border:1px solid #ccc}
+button{background:#e60000;color:#fff;border:none;cursor:pointer}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px}
+.card{background:#fff;padding:15px;border-radius:10px}
+.qty{display:flex;justify-content:center;align-items:center;gap:10px}
+img{width:100px;height:100px;object-fit:cover;border-radius:10px}
+</style>
+</head><body><header onmousedown="startPress()" onmouseup="endPress()">
+<h1>Raghav Enterprises</h1>
+</header><!-- LOGIN --><div id="login" class="section active">
+<h2>Enter Shop Details</h2>
+<input type="text" id="shopName" placeholder="Shop Name"><br>
+<input type="number" id="mobile" placeholder="Mobile Number"><br>
+<button onclick="saveUser()">Next</button>
+</div><!-- SHOP --><div id="shop" class="section">
+<h2>Select Products</h2>
+<div class="grid" id="productList"></div>
+<button onclick="goCheckout()">Next</button>
+</div><!-- CHECKOUT --><div id="checkout" class="section">
+<h2>Checkout</h2>
+<ul id="cartList"></ul>
+<button onclick="placeOrder()">Place Order</button>
+</div><!-- ADMIN LOGIN --><div id="adminLogin" class="section">
+<h2>Admin Login</h2>
+<input type="password" id="adminPass" placeholder="Enter Password">
+<button onclick="checkAdmin()">Login</button>
+</div><!-- ADMIN PANEL --><div id="adminPanel" class="section">
+<h2>Admin Panel</h2><h3>Add Product</h3>
+<input id="pname" placeholder="Product Name">
+<input id="pprice" placeholder="Price">
+<input id="pimg" placeholder="Image URL">
+<button onclick="addProduct()">Add</button><h3>Products</h3>
+<div id="products"></div><h3>Orders</h3>
+<div id="orders"></div><button onclick="showPage('login')">Logout</button>
+
+</div><script>
+let cart = {};
+let products = JSON.parse(localStorage.getItem('products')) || [
+ {name:'Kinely',price:20,img:''},
+ {name:'Maza',price:30,img:''},
+ {name:'Sprite',price:25,img:''},
+ {name:'Sting',price:20,img:''}
+];
+
+function showPage(id){
+ document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+ document.getElementById(id).classList.add('active');
+}
+
+function saveUser(){
+ let name=document.getElementById('shopName').value;
+ let mobile=document.getElementById('mobile').value;
+
+ if(!name || mobile.length!==10){
+  alert("Enter valid 10-digit mobile");
+  return;
+ }
+
+ localStorage.setItem('user',JSON.stringify({name,mobile}));
+ loadProducts();
+ showPage('shop');
+}
+
+function loadProducts(){
+ let div=document.getElementById('productList');
+ div.innerHTML='';
+
+ products.forEach(p=>{
+  cart[p.name]=0;
+
+  div.innerHTML+=`
+  <div class="card">
+   <img src="${p.img || 'https://via.placeholder.com/100'}">
+   <h4>${p.name}</h4>
+   <p>₹${p.price}</p>
+   <div class="qty">
+    <button onclick="changeQty('${p.name}',-1)">-</button>
+    <span id="${p.name}">0</span>
+    <button onclick="changeQty('${p.name}',1)">+</button>
+   </div>
+  </div>`;
+ });
+}
+
+function changeQty(item,change){
+ cart[item]+=change;
+ if(cart[item]<0) cart[item]=0;
+ document.getElementById(item).innerText=cart[item];
+}
+
+function goCheckout(){
+ let list=document.getElementById('cartList');
+ list.innerHTML='';
+
+ for(let i in cart){
+  if(cart[i]>0){
+   let li=document.createElement('li');
+   li.textContent = i + " x " + cart[i];
+   list.appendChild(li);
+  }
+ }
+
+ showPage('checkout');
+}
+
+function placeOrder(){
+ let user=JSON.parse(localStorage.getItem('user'));
+ let orders=JSON.parse(localStorage.getItem('orders'))||[];
+
+ orders.push({user,cart});
+ localStorage.setItem('orders',JSON.stringify(orders));
+
+ document.body.innerHTML += `
+ <div style="position:fixed;top:0;left:0;width:100%;height:100%;
+ background:rgba(0,0,0,0.6);display:flex;justify-content:center;align-items:center;">
+   <div style="background:white;padding:20px;border-radius:10px;text-align:center">
+     <h2 style="color:green;">✅ Order Successful</h2>
+     <button onclick="location.reload()">OK</button>
+   </div>
+ </div>`;
+}
+
+// ADMIN
+let pressTimer;
+const ADMIN_PASSWORD = "9450";
+
+function startPress(){
+ pressTimer = setTimeout(()=>{
+   showPage('adminLogin');
+ },1500);
+}
+
+function endPress(){ clearTimeout(pressTimer); }
+
+function checkAdmin(){
+ let pass=document.getElementById('adminPass').value;
+ if(pass===ADMIN_PASSWORD){
+  loadAdmin();
+  showPage('adminPanel');
+ } else alert("Wrong Password");
+}
+
+function loadAdmin(){
+ loadProductsAdmin();
+ loadOrders();
+}
+
+function loadProductsAdmin(){
+ let div=document.getElementById('products');
+ div.innerHTML='';
+
+ products.forEach((p,i)=>{
+  div.innerHTML+=`
+  <div class="card">
+   <img src="${p.img || 'https://via.placeholder.com/100'}"><br>
+   ${p.name} - ₹${p.price}
+   <button onclick="deleteProduct(${i})">Delete</button>
+  </div>`;
+ });
+}
+
+function addProduct(){
+ let name=document.getElementById('pname').value;
+ let price=document.getElementById('pprice').value;
+ let img=document.getElementById('pimg').value;
+
+ if(!name || !price) return;
+
+ products.push({name,price,img});
+ localStorage.setItem('products',JSON.stringify(products));
+ loadProductsAdmin();
+ loadProducts();
+}
+
+function deleteProduct(i){
+ products.splice(i,1);
+ localStorage.setItem('products',JSON.stringify(products));
+ loadProductsAdmin();
+ loadProducts();
+}
+
+function loadOrders(){
+ let orders=JSON.parse(localStorage.getItem('orders'))||[];
+ let div=document.getElementById('orders');
+ div.innerHTML='';
+
+ orders.forEach(o=>{
+  let items='';
+  for(let i in o.cart){
+    if(o.cart[i]>0){
+      items+=i+' x '+o.cart[i]+'<br>';
+    }
+  }
+
+  div.innerHTML+=`
+  <div class="card">
+   <b>${o.user.name}</b> (${o.user.mobile})<br>
+   ${items}
+  </div>`;
+ });
+}
+</script></body>
+</html>
